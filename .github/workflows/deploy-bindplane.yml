@@ -10,12 +10,13 @@ env:
   TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
   TF_VAR_admin_password: ${{ secrets.BINDPLANE_ADMIN_PASSWORD }}
 
+
 # =========================================================
-# PART 1 – CLOUD SQL POSTGRESQL (IDEMPOTENT)
+# PART 1 – CLOUD SQL POSTGRESQL
 # =========================================================
 jobs:
   part1-db:
-    name: Part 1 – Cloud SQL PostgreSQL (Import if Exists)
+    name: Part 1 – Cloud SQL PostgreSQL (Wait Until ACTIVE)
     runs-on: ubuntu-latest
 
     steps:
@@ -32,64 +33,26 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Terraform Init – Cloud SQL
         working-directory: terraform/part1-db
         run: terraform init
 
-      - name: Terraform Apply – Cloud SQL (Import instance, DB & user if exist)
+      - name: Terraform Apply – Cloud SQL
         working-directory: terraform/part1-db
-        run: |
-          set -e
-
-          PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
-          INSTANCE_NAME="bp-postgres"
-          DB_NAME="bindplane"
-          DB_USER="bindplane"
-
-          echo "Checking Cloud SQL instance..."
-          if gcloud sql instances describe "$INSTANCE_NAME" \
-            --project "$PROJECT_ID" >/dev/null 2>&1; then
-            echo "Importing existing Cloud SQL instance"
-            terraform import google_sql_database_instance.postgres "$INSTANCE_NAME" || true
-          fi
-
-          echo "Checking Cloud SQL database..."
-          if gcloud sql databases describe "$DB_NAME" \
-            --instance "$INSTANCE_NAME" \
-            --project "$PROJECT_ID" >/dev/null 2>&1; then
-            echo "Importing existing Cloud SQL database"
-            terraform import google_sql_database.bindplane \
-              "$INSTANCE_NAME/$DB_NAME" || true
-          fi
-
-          echo "Checking Cloud SQL user..."
-          if gcloud sql users list \
-            --instance "$INSTANCE_NAME" \
-            --project "$PROJECT_ID" \
-            --format="value(name)" | grep -q "^$DB_USER$"; then
-            echo "Importing existing Cloud SQL user"
-            terraform import google_sql_user.bindplane \
-              "$INSTANCE_NAME/$DB_USER" || true
-          fi
-
-          echo "Applying Terraform..."
-          terraform apply -auto-approve
+        run: terraform apply -auto-approve
 
       - name: Wait until Cloud SQL PostgreSQL is ACTIVE
         run: |
           echo "Waiting for Cloud SQL instance to be RUNNABLE..."
           for i in {1..30}; do
             STATE=$(gcloud sql instances describe bp-postgres \
-              --project "${{ secrets.GCP_PROJECT_ID }}" \
-              --format="value(state)") || STATE="UNKNOWN"
-            echo "Current state: $STATE"
+              --project ${{ secrets.GCP_PROJECT_ID }} \
+              --format="value(state)")
             if [ "$STATE" = "RUNNABLE" ]; then
               echo "Cloud SQL PostgreSQL is ACTIVE"
               exit 0
             fi
+            echo "Current state: $STATE"
             sleep 15
           done
           echo "Cloud SQL did not become ACTIVE"
@@ -104,13 +67,16 @@ jobs:
     needs: part1-db
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
@@ -132,6 +98,7 @@ jobs:
               echo "BindPlane Control Plane is ACTIVE"
               exit 0
             fi
+            echo "Control Plane not active yet..."
             sleep 15
           done
           echo "Control Plane did not become ACTIVE"
@@ -146,13 +113,16 @@ jobs:
     needs: part2-control-plane
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
@@ -175,7 +145,10 @@ jobs:
               echo "BindPlane Agent is ACTIVE and registered"
               exit 0
             fi
+            echo "Agent not active yet..."
             sleep 15
           done
           echo "Agent did not become ACTIVE"
           exit 1
+
+ 
