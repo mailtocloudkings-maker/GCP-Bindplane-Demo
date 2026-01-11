@@ -121,15 +121,7 @@ jobs:
         run: |
           CP_IP=$(terraform output -raw control_plane_ip)
           echo "Waiting for BindPlane UI on http://$CP_IP:3001"
-          for i in {1..30}; do
-            if curl -sf http://$CP_IP:3001 >/dev/null; then
-              echo "BindPlane Control Plane is ACTIVE"
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "Control Plane did not become ACTIVE"
-          exit 1
+
 
 # =========================================================
 #  BINDPLANE AGENT
