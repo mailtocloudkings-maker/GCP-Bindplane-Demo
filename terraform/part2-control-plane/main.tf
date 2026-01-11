@@ -1,8 +1,14 @@
+############################################
+# Provider
+############################################
 provider "google" {
   project = var.project_id
   region  = var.region
 }
 
+############################################
+# Remote state from Part 1 – Cloud SQL
+############################################
 data "terraform_remote_state" "db" {
   backend = "gcs"
   config = {
@@ -11,6 +17,9 @@ data "terraform_remote_state" "db" {
   }
 }
 
+############################################
+# BindPlane Control Plane VM
+############################################
 resource "google_compute_instance" "control_plane" {
   name         = "bp-control-plane"
   machine_type = "e2-micro"
@@ -32,10 +41,14 @@ resource "google_compute_instance" "control_plane" {
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "Updating OS and installing prerequisites..."
 apt-get update -y
 apt-get install -y curl jq
 
-curl -sSL https://observiq.com/install-bindplane.sh | bash
+echo "Installing BindPlane Control Plane..."
+curl -sSL https://bindplane.com/install.sh | sudo bash
+
+echo "Configuring BindPlane with Cloud SQL PostgreSQL..."
 
 bindplane setup \
   --db-host ${data.terraform_remote_state.db.outputs.db_host} \
@@ -45,9 +58,18 @@ bindplane setup \
   --db-name ${data.terraform_remote_state.db.outputs.db_name} \
   --admin-password ${var.admin_password}
 
+echo "BindPlane Control Plane setup completed successfully"
 SCRIPT
+
+  service_account {
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
 }
 
+############################################
+# Outputs
+############################################
 output "control_plane_ip" {
-  value = google_compute_instance.control_plane.network_interface[0].access_config[0].nat_ip
+  description = "Public IP address of BindPlane Control Plane"
+  value       = google_compute_instance.control_plane.network_interface[0].access_config[0].nat_ip
 }
