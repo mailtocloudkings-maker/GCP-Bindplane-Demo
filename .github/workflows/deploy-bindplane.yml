@@ -36,8 +36,6 @@ jobs:
             ~/.terraform.d/plugin-cache
             terraform/.terraform.d/plugin-cache
           key: tf-${{ runner.os }}-${{ env.TF_VERSION }}-${{ hashFiles('**/*.tf') }}
-        env:
-          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
       - name: Authenticate to GCP (Workload Identity / SA Key)
         uses: google-github-actions/auth@v2
@@ -54,6 +52,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl jq netcat
 
+      - name: Terraform fmt & validate (fail fast)
+        working-directory: terraform/part1-db
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+        run: |
+          terraform fmt -recursive
+          terraform validate
+
       - name: Terraform Init – Cloud SQL
         working-directory: terraform/part1-db
         env:
@@ -62,6 +68,7 @@ jobs:
           TF_VAR_region:         ${{ secrets.GCP_REGION }}
           TF_VAR_db_password:    ${{ secrets.DB_PASSWORD }}
           TF_VAR_db_admin:       ${{ secrets.DB_ADMIN }}
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
         run: |
           terraform init -input=false
 
@@ -69,6 +76,7 @@ jobs:
         working-directory: terraform/part1-db
         env:
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
         run: |
           terraform apply -auto-approve -input=false -lock-timeout=300s
 
@@ -118,8 +126,6 @@ jobs:
             ~/.terraform.d/plugin-cache
             terraform/.terraform.d/plugin-cache
           key: tf-${{ runner.os }}-${{ env.TF_VERSION }}-${{ hashFiles('**/*.tf') }}
-        env:
-          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -136,6 +142,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl jq netcat
 
+      - name: Terraform fmt & validate (fail fast)
+        working-directory: terraform/part2-control-plane
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+        run: |
+          terraform fmt -recursive
+          terraform validate
+
       - name: Terraform Init – Control Plane
         working-directory: terraform/part2-control-plane
         env:
@@ -143,12 +157,14 @@ jobs:
           TF_VAR_project_id:     ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_region:         ${{ secrets.GCP_REGION }}
           TF_VAR_admin_password: ${{ secrets.BINDPLANE_ADMIN_PASSWORD }}
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
         run: terraform init -input=false
 
       - name: Terraform Apply – Control Plane
         working-directory: terraform/part2-control-plane
         env:
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
         run: terraform apply -auto-approve -input=false -lock-timeout=300s
 
       - name: Capture Control Plane IP (output)
