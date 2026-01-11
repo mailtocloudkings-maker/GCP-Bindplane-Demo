@@ -1,3 +1,8 @@
+
+############################################
+# Variables
+############################################
+
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
@@ -8,7 +13,7 @@ variable "region" {
   type        = string
 }
 
-variable "DB_PASSWORD" {
+variable "db_password" {
   description = "Cloud SQL PostgreSQL password"
   type        = string
   sensitive   = true
@@ -21,7 +26,7 @@ variable "admin_password" {
 }
 
 variable "db_admin" {
-  description = "dataa dmin"
+  description = "Database admin user"
   type        = string
   sensitive   = true
 }
