@@ -39,11 +39,14 @@ resource "google_compute_instance" "control_plane" {
   }
 
   # Startup script: install Bindplane Control Plane and configure DB
+  # IMPORTANT:
+  # - Use <<-EOF (not HTML &lt;&lt;EOF)
+  # - Use "${var.*}" (not $var.*)
+  # - Quote all interpolations
   metadata_startup_script = <<-EOF
     #!/bin/bash
     set -euo pipefail
 
-    # Basic dependencies (jq used below)
     apt-get update -y
     apt-get install -y jq curl
 
@@ -67,17 +70,14 @@ resource "google_compute_instance" "control_plane" {
     echo "BindPlane Control Plane setup completed"
   EOF
 
-  # (Optional) if you plan to read secrets from GCP inside the VM later
   service_account {
-    # email = google_service_account.cp_sa.email  # uncomment if creating an SA resource
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
-  # (Optional) labels for housekeeping
   labels = {
-    app    = "bindplane"
-    role   = "control-plane"
-    env    = "demo"
+    app  = "bindplane"
+    role = "control-plane"
+    env  = "demo"
   }
 }
 
