@@ -47,7 +47,6 @@ output "control_plane_ip" {
   value = google_compute_instance.control_plane.network_interface[0].access_config[0].nat_ip
 }
 
-output "bindplane_api_key" {
-  value     = jsondecode(file("/tmp/api.json")).key
-  sensitive = true
+output "db_ip" {
+  value = google_compute_instance.postgres.network_interface[0].network_ip
 }
