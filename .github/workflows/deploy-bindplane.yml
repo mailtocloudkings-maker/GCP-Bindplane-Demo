@@ -4,15 +4,15 @@ name: BindPlane GCP Demo Deployment (Strict Active Gates)
 on:
   workflow_dispatch:
 
+
 env:
   TF_VERSION: 1.6.6
-
-  # Terraform inputs via TF_VAR_* (must match variables.tf names in your Terraform)
   TF_VAR_project_id:     ${{ secrets.GCP_PROJECT_ID }}
   TF_VAR_region:         ${{ secrets.GCP_REGION }}
   TF_VAR_db_password:    ${{ secrets.DB_PASSWORD }}
   TF_VAR_admin_password: ${{ secrets.BINDPLANE_ADMIN_PASSWORD }}
-  TF_VAR_db_admin:       ${{ secrets.DB_ADMIN }}     # ADD this repo secret (e.g., db admin username)
+  TF_VAR_db_admin:       ${{ secrets.DB_ADMIN }} # set to 'postgres' if that's your admin
+
 
 # =========================================================
 # PART 1 – CLOUD SQL POSTGRESQL
