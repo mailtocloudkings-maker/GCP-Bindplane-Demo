@@ -10,7 +10,6 @@ env:
   TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
   TF_VAR_admin_password: ${{ secrets.BINDPLANE_ADMIN_PASSWORD }}
 
-
 # =========================================================
 # PART 1 – CLOUD SQL POSTGRESQL
 # =========================================================
@@ -33,26 +32,41 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Terraform Init – Cloud SQL
         working-directory: terraform/part1-db
         run: terraform init
 
-      - name: Terraform Apply – Cloud SQL
+      - name: Terraform Apply – Cloud SQL (Import if exists)
         working-directory: terraform/part1-db
-        run: terraform apply -auto-approve
+        run: |
+          set -e
+
+          echo "Checking if Cloud SQL instance bp-postgres already exists..."
+          if gcloud sql instances describe bp-postgres \
+            --project "${{ secrets.GCP_PROJECT_ID }}" >/dev/null 2>&1; then
+            echo "Cloud SQL already exists. Importing into Terraform state..."
+            terraform import google_sql_database_instance.postgres bp-postgres || true
+          else
+            echo "Cloud SQL does not exist. It will be created."
+          fi
+
+          terraform apply -auto-approve
 
       - name: Wait until Cloud SQL PostgreSQL is ACTIVE
         run: |
           echo "Waiting for Cloud SQL instance to be RUNNABLE..."
           for i in {1..30}; do
             STATE=$(gcloud sql instances describe bp-postgres \
-              --project ${{ secrets.GCP_PROJECT_ID }} \
-              --format="value(state)")
+              --project "${{ secrets.GCP_PROJECT_ID }}" \
+              --format="value(state)") || STATE="UNKNOWN"
+            echo "Current state: $STATE"
             if [ "$STATE" = "RUNNABLE" ]; then
               echo "Cloud SQL PostgreSQL is ACTIVE"
               exit 0
             fi
-            echo "Current state: $STATE"
             sleep 15
           done
           echo "Cloud SQL did not become ACTIVE"
@@ -150,5 +164,3 @@ jobs:
           done
           echo "Agent did not become ACTIVE"
           exit 1
-
- 
