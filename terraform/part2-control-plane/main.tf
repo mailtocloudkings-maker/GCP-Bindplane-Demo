@@ -38,8 +38,9 @@ resource "google_compute_instance" "control_plane" {
     access_config {} # ephemeral public IP
   }
 
-  # Startup script: install Bindplane Control Plane and configure DB
-  metadata_startup_script = <<-EOF
+  # Startup script: install BindPlane Control Plane and configure DB
+  # Using a *literal* heredoc (<<-'EOF') to avoid unwanted interpolation in the script.
+  metadata_startup_script = <<-'EOF'
     #!/bin/bash
     set -euo pipefail
 
@@ -67,7 +68,7 @@ resource "google_compute_instance" "control_plane" {
   EOF
 
   service_account {
-    # Use the default compute service account; specify email here if you need a custom SA
+    # Default compute service account is used. If you need a custom SA, set the email explicitly.
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
@@ -85,3 +86,4 @@ output "control_plane_ip" {
   description = "Public IP of BindPlane Control Plane"
   value       = google_compute_instance.control_plane.network_interface[0].access_config[0].nat_ip
 }
+``
