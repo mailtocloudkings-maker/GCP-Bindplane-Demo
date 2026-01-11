@@ -3,59 +3,59 @@ name: BindPlane GCP Demo Deployment (Strict Active Gates)
 on:
   workflow_dispatch:
 
-concurrency:
-  group: bindplane-gcp-demo-${{ github.ref }}
-  cancel-in-progress: false
-
 env:
   TF_VERSION: 1.6.6
+  TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+  TF_VAR_region: ${{ secrets.GCP_REGION }}
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+  TF_VAR_admin_password: ${{ secrets.BINDPLANE_ADMIN_PASSWORD }}
 
-jobs:
+
 # =========================================================
 # PART 1 – CLOUD SQL POSTGRESQL
 # =========================================================
+jobs:
   part1-db:
     name: Part 1 – Cloud SQL PostgreSQL (Wait Until ACTIVE)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - uses: google-github-actions/setup-gcloud@v2
-
       - name: Terraform Init – Cloud SQL
         working-directory: terraform/part1-db
-        env:
-          TF_VAR_project_id:  ${{ secrets.GCP_PROJECT_ID }}
-          TF_VAR_region:      ${{ secrets.GCP_REGION }}
-          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-        run: terraform init -input=false
+        run: terraform init
 
       - name: Terraform Apply – Cloud SQL
         working-directory: terraform/part1-db
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve
 
-      - name: Wait until Cloud SQL is RUNNABLE
+      - name: Wait until Cloud SQL PostgreSQL is ACTIVE
         run: |
-          for i in {1..40}; do
+          echo "Waiting for Cloud SQL instance to be RUNNABLE..."
+          for i in {1..30}; do
             STATE=$(gcloud sql instances describe bp-postgres \
-              --project "${{ secrets.GCP_PROJECT_ID }}" \
-              --format="value(state)" || true)
-            echo "State: $STATE"
+              --project ${{ secrets.GCP_PROJECT_ID }} \
+              --format="value(state)")
             if [ "$STATE" = "RUNNABLE" ]; then
+              echo "Cloud SQL PostgreSQL is ACTIVE"
               exit 0
             fi
+            echo "Current state: $STATE"
             sleep 15
           done
+          echo "Cloud SQL did not become ACTIVE"
           exit 1
 
 # =========================================================
@@ -65,53 +65,43 @@ jobs:
     name: Part 2 – BindPlane Control Plane (Wait Until ACTIVE)
     runs-on: ubuntu-latest
     needs: part1-db
-    timeout-minutes: 40
-
-    outputs:
-      control_plane_ip: ${{ steps.cp_output.outputs.control_plane_ip }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - uses: google-github-actions/setup-gcloud@v2
-
       - name: Terraform Init – Control Plane
         working-directory: terraform/part2-control-plane
-        env:
-          TF_VAR_project_id:     ${{ secrets.GCP_PROJECT_ID }}
-          TF_VAR_region:         ${{ secrets.GCP_REGION }}
-          TF_VAR_db_password:    ${{ secrets.DB_PASSWORD }}            
-          TF_VAR_admin_password: ${{ secrets.BINDPLANE_ADMIN_PASSWORD }}
-        run: terraform init -reconfigure -input=false
+        run: terraform init
 
       - name: Terraform Apply – Control Plane
         working-directory: terraform/part2-control-plane
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve
 
-      - name: Capture Control Plane IP
-        id: cp_output
+      - name: Wait until BindPlane Control Plane is ACTIVE
         working-directory: terraform/part2-control-plane
         run: |
-          IP=$(terraform output -raw control_plane_ip)
-          echo "control_plane_ip=$IP" >> "$GITHUB_OUTPUT"
-
-      - name: Wait until Control Plane is ACTIVE
-        run: |
-          IP="${{ steps.cp_output.outputs.control_plane_ip }}"
-          for i in {1..40}; do
-            if curl -sf "http://$IP:3001" >/dev/null; then
+          CP_IP=$(terraform output -raw control_plane_ip)
+          echo "Waiting for BindPlane UI on http://$CP_IP:3001"
+          for i in {1..30}; do
+            if curl -sf http://$CP_IP:3001 >/dev/null; then
+              echo "BindPlane Control Plane is ACTIVE"
               exit 0
             fi
+            echo "Control Plane not active yet..."
             sleep 15
           done
+          echo "Control Plane did not become ACTIVE"
           exit 1
 
 # =========================================================
@@ -121,26 +111,44 @@ jobs:
     name: Part 3 – BindPlane Agent (Wait Until ACTIVE)
     runs-on: ubuntu-latest
     needs: part2-control-plane
-    timeout-minutes: 40
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - uses: google-github-actions/auth@v2
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Terraform Init – Agent
         working-directory: terraform/part3-agents
-        env:
-          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
-          TF_VAR_region:     ${{ secrets.GCP_REGION }}
-        run: terraform init -input=false
+        run: terraform init
 
       - name: Terraform Apply – Agent
         working-directory: terraform/part3-agents
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve
+
+      - name: Wait until Agent is ACTIVE (Registered)
+        working-directory: terraform/part2-control-plane
+        run: |
+          CP_IP=$(terraform output -raw control_plane_ip)
+          echo "Checking agent registration via BindPlane API"
+          for i in {1..30}; do
+            COUNT=$(curl -sf http://$CP_IP:3001/api/v1/agents | jq '.agents | length')
+            if [ "$COUNT" -ge 1 ]; then
+              echo "BindPlane Agent is ACTIVE and registered"
+              exit 0
+            fi
+            echo "Agent not active yet..."
+            sleep 15
+          done
+          echo "Agent did not become ACTIVE"
+          exit 1
+
+ 
