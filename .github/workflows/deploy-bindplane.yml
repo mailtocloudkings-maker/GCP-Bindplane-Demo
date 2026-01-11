@@ -83,6 +83,21 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      - name: ABSOLUTE DEBUG – show where Terraform is running
+        run: |
+           echo "PWD:"
+           pwd
+           echo
+           echo "Find ALL main.tf files:"
+           find . -name "main.tf" -type f -print
+           echo
+           echo "Show ALL files in current dir:"
+           ls -la
+           echo
+           echo "Dump current main.tf with line numbers:"
+           nl -ba main.tf || echo "NO main.tf HERE"
+
+
 
       - name: Terraform Init – Control Plane
         working-directory: terraform/part2-control-plane
