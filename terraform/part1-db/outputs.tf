@@ -1,16 +1,19 @@
 output "db_host" {
-  description = "Cloud SQL private/public IP"
-  value       = google_sql_database_instance.postgres.ip_address[0].ip_address
+  description = "Cloud SQL public IP address"
+  value       = google_sql_database_instance.postgres.public_ip_address
 }
 
 output "db_port" {
-  value = 5432
+  description = "PostgreSQL port"
+  value       = 5432
 }
 
 output "db_name" {
-  value = google_sql_database.bindplane.name
+  description = "BindPlane database name"
+  value       = google_sql_database.bindplane.name
 }
 
 output "db_user" {
-  value = google_sql_user.bindplane.name
+  description = "BindPlane database user"
+  value       = google_sql_user.bindplane.name
 }
