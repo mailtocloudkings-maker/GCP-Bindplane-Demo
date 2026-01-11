@@ -1,33 +1,71 @@
 provider "google" {
+
   project = var.project_id
+
   region  = var.region
+
 }
  
-resource "google_compute_instance" "postgres" {
-  name         = "bp-postgres"
-  machine_type = "e2-micro"
-  zone         = "us-central1-a"
+# Enable Cloud SQL API
+
+resource "google_project_service" "sqladmin" {
+
+  service = "sqladmin.googleapis.com"
+
+}
  
-  boot_disk {
-    initialize_params {
-      image = "debian-12"
-      size  = 10
+# Cloud SQL PostgreSQL instance
+
+resource "google_sql_database_instance" "postgres" {
+
+  name             = "bp-postgres"
+
+  database_version = "POSTGRES_14"
+
+  region           = var.region
+ 
+  settings {
+
+    tier = "db-f1-micro"   # Demo / free-tier friendly
+ 
+    availability_type = "ZONAL"
+ 
+    backup_configuration {
+
+      enabled = true
+
     }
+ 
+    ip_configuration {
+
+      ipv4_enabled = true
+
+    }
+
   }
  
-  network_interface {
-    network = "default"
-  }
- 
-  metadata_startup_script = <<EOF
-#!/bin/bash
-apt update
-apt install -y postgresql
-sudo -u postgres psql -c "CREATE USER bindplane WITH PASSWORD '${var.db_password}';"
-sudo -u postgres psql -c "CREATE DATABASE bindplane OWNER bindplane;"
-EOF
+  depends_on = [google_project_service.sqladmin]
+
 }
  
-output "db_ip" {
-  value = google_compute_instance.postgres.network_interface[0].network_ip
+# Database
+
+resource "google_sql_database" "bindplane" {
+
+  name     = "bindplane"
+
+  instance = google_sql_database_instance.postgres.name
+
+}
+ 
+# Database user
+
+resource "google_sql_user" "bindplane" {
+
+  name     = "bindplane"
+
+  instance = google_sql_database_instance.postgres.name
+
+  password = var.db_password
+
 }
