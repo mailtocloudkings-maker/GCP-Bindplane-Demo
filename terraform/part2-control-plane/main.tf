@@ -35,25 +35,17 @@ set -euo pipefail
 apt-get update -y
 apt-get install -y curl jq
 
-echo "Installing BindPlane Control Plane..."
 curl -sSL https://observiq.com/install-bindplane.sh | bash
 
-echo "Configuring BindPlane with Cloud SQL..."
-
 bindplane setup \
-  --db-host "${data.terraform_remote_state.db.outputs.db_host}" \
-  --db-port "${data.terraform_remote_state.db.outputs.db_port}" \
-  --db-user "${data.terraform_remote_state.db.outputs.db_user}" \
-  --db-password "${var.db_password}" \
-  --db-name "${data.terraform_remote_state.db.outputs.db_name}" \
-  --admin-password "${var.admin_password}"
+  --db-host ${data.terraform_remote_state.db.outputs.db_host} \
+  --db-port ${data.terraform_remote_state.db.outputs.db_port} \
+  --db-user ${data.terraform_remote_state.db.outputs.db_user} \
+  --db-password ${var.db_password} \
+  --db-name ${data.terraform_remote_state.db.outputs.db_name} \
+  --admin-password ${var.admin_password}
 
-echo "BindPlane Control Plane setup completed"
 SCRIPT
-
-  service_account {
-    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-  }
 }
 
 output "control_plane_ip" {
