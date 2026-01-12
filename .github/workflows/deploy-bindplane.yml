@@ -80,8 +80,12 @@ jobs:
         run: terraform init
 
       - name: Terraform Apply – Control Plane
-        working-directory: terraform/part2-control-plane
+         working-directory: terraform/part2-control-plane
+     env:
+    GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+    CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
         run: terraform apply -auto-approve
+
 
 # =========================================================
 #  BINDPLANE AGENTS
