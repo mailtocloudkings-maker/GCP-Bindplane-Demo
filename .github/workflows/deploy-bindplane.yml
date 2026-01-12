@@ -79,6 +79,15 @@ jobs:
           CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
         run: terraform apply -auto-approve
 
+      - name: Output Internal IP
+        working-directory: terraform/part2-control-plane
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
+        run: |
+          CP_IP=$(terraform output -raw control_plane_internal_ip)
+          echo "BindPlane Control Plane Internal IP: $CP_IP"
+
 # =========================================================
 #  BINDPLANE AGENTS
 # =========================================================
