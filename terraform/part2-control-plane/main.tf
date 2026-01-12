@@ -1,14 +1,8 @@
-############################################
-# Provider
-############################################
 provider "google" {
   project = var.project_id
   region  = var.region
 }
 
-############################################
-# Remote State – Part 1 (Cloud SQL)
-############################################
 data "terraform_remote_state" "db" {
   backend = "gcs"
   config = {
@@ -17,9 +11,6 @@ data "terraform_remote_state" "db" {
   }
 }
 
-############################################
-# BindPlane Control Plane VM
-############################################
 resource "google_compute_instance" "control_plane" {
   name         = "bp-control-plane"
   machine_type = "e2-micro"
@@ -32,12 +23,9 @@ resource "google_compute_instance" "control_plane" {
     }
   }
 
-  # Public IP assigned
   network_interface {
     network = "default"
-
-    # Ephemeral public IP
-    access_config {}
+    access_config {} # Public IP
   }
 
   metadata_startup_script = <<SCRIPT
@@ -66,14 +54,10 @@ echo "BindPlane Control Plane installation completed"
 SCRIPT
 
   service_account {
-    email  = "terraform-ci@${var.project_id}.iam.gserviceaccount.com"
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 }
 
-############################################
-# Outputs
-############################################
 output "control_plane_ip" {
   description = "Public IP of BindPlane Control Plane"
   value       = google_compute_instance.control_plane.network_interface[0].access_config[0].nat_ip
