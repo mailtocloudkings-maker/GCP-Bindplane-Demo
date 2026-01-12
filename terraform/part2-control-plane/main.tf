@@ -12,7 +12,7 @@ provider "google" {
 data "terraform_remote_state" "db" {
   backend = "gcs"
   config = {
-    bucket = "bindplane-tf-state-demo"
+    bucket = "bindplane-tf-state-bucket"
     prefix = "bindplane/part1-db"
   }
 }
