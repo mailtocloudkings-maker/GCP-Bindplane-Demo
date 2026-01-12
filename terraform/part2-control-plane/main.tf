@@ -64,9 +64,11 @@ bindplane setup \
 echo "BindPlane Control Plane installation and configuration completed"
 SCRIPT
 
-  service_account {
-    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+service_account {
+  email  = "terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+  scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
+
 }
 
 ############################################
