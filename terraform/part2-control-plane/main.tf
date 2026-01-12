@@ -32,6 +32,7 @@ resource "google_compute_instance" "control_plane" {
     }
   }
 
+  # Private-only VM – no external IP
   network_interface {
     network = "default"
   }
@@ -45,9 +46,7 @@ apt-get update -y
 apt-get install -y curl jq ca-certificates
 
 echo "Installing BindPlane Control Plane..."
-curl -fsSlL https://storage.googleapis.com/bindplane-op-releases/bindplane/latest/install-linux.sh \
-  -o install-linux.sh
-
+curl -fsSlL https://storage.googleapis.com/bindplane-op-releases/bindplane/latest/install-linux.sh -o install-linux.sh
 bash install-linux.sh --version 1.96.7 --init
 rm -f install-linux.sh
 
@@ -60,20 +59,19 @@ bindplane setup \
   --db-name ${data.terraform_remote_state.db.outputs.db_name} \
   --admin-password ${var.admin_password}
 
-echo "BindPlane Control Plane installation and configuration completed"
+echo "BindPlane Control Plane installation completed"
 SCRIPT
 
-service_account {
-  email  = "terraform-ci@${var.project_id}.iam.gserviceaccount.com"
-  scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  service_account {
+    email  = "terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
-
 }
 
 ############################################
 # Outputs
 ############################################
-output "control_plane_ip" {
-  description = "Public IP of BindPlane Control Plane"
-  value       = google_compute_instance.control_plane.network_interface[0].access_config[0].nat_ip
+output "control_plane_internal_ip" {
+  description = "Internal IP of BindPlane Control Plane"
+  value       = google_compute_instance.control_plane.network_interface[0].network_ip
 }
