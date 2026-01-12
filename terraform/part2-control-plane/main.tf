@@ -32,9 +32,12 @@ resource "google_compute_instance" "control_plane" {
     }
   }
 
-  # Private-only VM – no external IP
+  # Public IP assigned
   network_interface {
     network = "default"
+
+    # Ephemeral public IP
+    access_config {}
   }
 
   metadata_startup_script = <<SCRIPT
@@ -46,7 +49,7 @@ apt-get update -y
 apt-get install -y curl jq ca-certificates
 
 echo "Installing BindPlane Control Plane..."
-curl -fsSlL https://storage.googleapis.com/bindplane-op-releases/bindplane/latest/install-linux.sh -o install-linux.sh
+curl -fsSL https://storage.googleapis.com/bindplane-op-releases/bindplane/latest/install-linux.sh -o install-linux.sh
 bash install-linux.sh --version 1.96.7 --init
 rm -f install-linux.sh
 
@@ -71,7 +74,7 @@ SCRIPT
 ############################################
 # Outputs
 ############################################
-output "control_plane_internal_ip" {
-  description = "Internal IP of BindPlane Control Plane"
-  value       = google_compute_instance.control_plane.network_interface[0].network_ip
+output "control_plane_ip" {
+  description = "Public IP of BindPlane Control Plane"
+  value       = google_compute_instance.control_plane.network_interface[0].access_config[0].nat_ip
 }
